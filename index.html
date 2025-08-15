@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Produk Cicilan Harian</title>
+  
+  <!-- Memanggil file CSS eksternal -->
+  <link rel="stylesheet" href="style.css" />
+  
+  <!-- Vue.js 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+  <div id="app" class="container mx-auto px-2 py-8">
+    <h1 class="text-xl sm:text-2xl font-extrabold text-center text-gray-900 mb-6">
+      Produk Unggulan
+    </h1>
+    
+    <!-- Navigasi Kategori -->
+    <div class="flex justify-center items-center space-x-2 sm:space-x-4 mb-6 flex-wrap">
+        <button
+            @click="setCategory('all')"
+            :class="{'bg-teal-600 text-white': selectedCategory === 'all', 'bg-gray-200 text-gray-800 hover:bg-gray-300': selectedCategory !== 'all'}"
+            class="px-3 sm:px-4 py-2 text-sm sm:text-base font-medium rounded-full transition-colors duration-200"
+        >
+            Semua Produk
+        </button>
+        <button
+            @click="setCategory('electronics')"
+            :class="{'bg-teal-600 text-white': selectedCategory === 'electronics', 'bg-gray-200 text-gray-800 hover:bg-gray-300': selectedCategory !== 'electronics'}"
+            class="px-3 sm:px-4 py-2 text-sm sm:text-base font-medium rounded-full transition-colors duration-200"
+        >
+            Elektronik
+        </button>
+        <button
+            @click="setCategory('furniture')"
+            :class="{'bg-teal-600 text-white': selectedCategory === 'furniture', 'bg-gray-200 text-gray-800 hover:bg-gray-300': selectedCategory !== 'furniture'}"
+            class="px-3 sm:px-4 py-2 text-sm sm:text-base font-medium rounded-full transition-colors duration-200"
+        >
+            Furniture
+        </button>
+    </div>
+
+    <!-- Kolom Pencarian -->
+    <div class="mb-6">
+      <input
+        v-model="searchQuery"
+        type="text"
+        placeholder="Cari nama barang..."
+        class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+      />
+    </div>
+
+    <!-- Tampilan Loading -->
+    <div v-if="isLoading" class="text-center text-gray-500 text-lg">
+        Memuat produk...
+    </div>
+
+    <!-- Tampilan saat tidak ada produk -->
+    <div v-else-if="filteredProducts.length === 0" class="text-center text-gray-500 text-lg">
+        Tidak ada produk ditemukan.
+    </div>
+
+    <!-- Daftar Card Produk -->
+    <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-4">
+      <div
+        v-for="product in filteredProducts"
+        :key="product.id"
+        class="product-card bg-white rounded-lg shadow-md p-2 sm:p-4 flex flex-col transform transition-all duration-300 hover:scale-105 cursor-pointer"
+        @click="showProductDetail(product)"
+      >
+        <div class="relative w-full h-24 sm:h-32 overflow-hidden rounded-md mb-2">
+          <!-- Gambar utama produk -->
+          <img
+            v-if="product.imageUrls && product.imageUrls.length > 0"
+            :src="product.imageUrls[0]"
+            :alt="product.name"
+            class="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
+            onerror="this.src='https://placehold.co/600x400/2dd4bf/ffffff?text=Produk'"
+          />
+          <!-- Gambar placeholder -->
+          <img
+            v-else
+            src="https://placehold.co/600x400/2dd4bf/ffffff?text=Produk'"
+            :alt="product.name"
+            class="w-full h-full object-cover"
+          />
+        </div>
+        <div class="flex-grow text-center">
+          <h3 class="text-sm sm:text-lg font-bold text-gray-800 line-clamp-2">{{ product.name }}</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal/Overlay untuk Detail Produk -->
+    <transition name="modal">
+      <div
+        v-if="selectedProduct"
+        @click.self="closeProductDetail"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto"
+      >
+        <div
+          class="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-8 relative flex flex-col md:flex-row gap-8 max-h-[90vh] overflow-y-auto"
+        >
+          <button
+            @click="closeProductDetail"
+            class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-3xl font-bold"
+          >
+            &times;
+          </button>
+          
+          <div class="md:w-1/2">
+            <div class="space-y-4">
+              <img
+                :src="selectedImage || (selectedProduct.imageUrls && selectedProduct.imageUrls.length > 0 ? selectedProduct.imageUrls[0] : 'https://placehold.co/600x400/2dd4bf/ffffff?text=Produk')"
+                :alt="selectedProduct.name"
+                class="rounded-lg object-cover w-full max-h-[300px] md:max-h-full"
+                onerror="this.src='https://placehold.co/600x400/2dd4bf/ffffff?text=Produk'"
+              />
+              <div class="flex space-x-2 overflow-x-auto">
+                <img
+                  v-for="(url, index) in selectedProduct.imageUrls"
+                  :key="index"
+                  :src="url"
+                  @click="selectedImage = url"
+                  class="w-16 h-16 object-cover rounded-md cursor-pointer border-2"
+                  :class="{'border-teal-500': selectedImage === url || (!selectedImage && index === 0), 'border-transparent': selectedImage !== url}"
+                  onerror="this.src='https://placehold.co/600x400/2dd4bf/ffffff?text=Produk'"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div class="md:w-1/2 flex flex-col justify-between">
+            <div>
+              <h2 class="text-3xl font-bold text-gray-900 mb-2">
+                {{ selectedProduct.name }}
+              </h2>
+              <p class="text-gray-600 text-sm mb-6">{{ selectedProduct.description }}</p>
+
+              <div v-if="selectedProduct.downPayment > 0" class="mt-4 border-t border-gray-200 pt-4">
+                <p class="text-lg text-gray-600">Uang Muka (DP):</p>
+                <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(selectedProduct.downPayment) }}</p>
+              </div>
+
+              <div class="mt-4 border-t border-gray-200 pt-4">
+                <p class="text-lg text-gray-600">Pilih Tenor Cicilan:</p>
+                <div class="flex flex-wrap space-x-2 mt-2">
+                  <button
+                    v-for="tenorOption in selectedProduct.tenorOptions"
+                    :key="tenorOption"
+                    class="px-4 py-2 text-sm font-medium rounded-full transition-colors duration-200 mb-2"
+                    :class="{'bg-teal-500 text-white': tenorOption === selectedProduct.selectedTenor, 'bg-gray-200 text-gray-800 hover:bg-gray-300': tenorOption !== selectedProduct.selectedTenor}"
+                    @click.stop="selectedProduct.selectedTenor = tenorOption"
+                  >
+                    {{ tenorOption }} hari
+                  </button>
+                </div>
+              </div>
+
+              <div class="mt-4 border-t border-gray-200 pt-4">
+                <p class="text-lg text-gray-600">Cicilan Harian:</p>
+                <p class="text-4xl font-extrabold text-teal-600">
+                  {{ formatCurrency(roundDailyPrice(calculateDailyInstallment(selectedProduct))) }}
+                  <span class="text-base font-normal text-gray-500">/ hari</span>
+                </p>
+              </div>
+            </div>
+
+            <button
+              @click="handleOrder"
+              class="mt-8 w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300"
+            >
+              Beli Sekarang
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </div>
+  <!-- Memanggil file JavaScript eksternal -->
+  <script type="module" src="main.js"></script>
+</body>
+</html>
